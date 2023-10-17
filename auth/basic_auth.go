@@ -1,21 +1,21 @@
-package main
+package auth
 
 import (
 	"encoding/hex"
-	"os"
 	"time"
 
-	mysql_driver "github.com/go-sql-driver/mysql"
 	"github.com/kataras/iris/v12"
 	"github.com/kataras/iris/v12/middleware/basicauth"
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
+
+
+
 func main() {
-	db := initDB()
-	authenticate := getAuthenticateFunc(db)
+	db := InitDB()
+	authenticate := GetAuthenticateFunc(db)
 	signup := getSignupFunc(db)
 
 	app := iris.New()
@@ -42,7 +42,7 @@ func main() {
 	app.Listen("localhost:8000")
 }
 
-func getSignupFunc(db *gorm.DB) func(ctx iris.Context) {
+func GetSignupFunc(db *gorm.DB) func(ctx iris.Context) {
 	return func(ctx iris.Context) {
 		u := User{}
 		err := ctx.ReadForm(&u)
@@ -74,49 +74,6 @@ func logout(ctx iris.Context) {
 	}
 	ctx.StatusCode(iris.StatusOK)
 }
-
-func getAuthenticateFunc(db *gorm.DB) func(ctx iris.Context, email, password string) (interface{}, bool) {
-	return func(ctx iris.Context, email, password string) (interface{}, bool) {
-		u := User{}
-		result := db.Where("email = ?", email).First(&u)
-		println(u.Email, u.Password)
-		// Databaseに一致するメールアドレスがない場合
-		if result.Error != nil {
-			return &u, false
-		}
-		err := bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(password))
-		// Userのパスワードと一致しなかった場合
-		if err != nil {
-			println("authenticate:", err)
-			return User{}, false
-		}
-		println("success: ", email, password)
-		//認証成功
-		return &u, true
-
-	}
-}
-
-func initDB() *gorm.DB {
-	cfg := mysql_driver.Config{
-		DBName:               "mydb",
-		User:                 os.Getenv("DBUSER"), // 環境変数に予め設定しておくこと！
-		Passwd:               os.Getenv("DBPASS"), // 環境変数に予め設定しておくこと！
-		Net:                  "tcp",
-		Addr:                 "127.0.0.1:3306", // デフォルトのMySQLポート
-		AllowNativePasswords: true,
-		ParseTime:            true,
-	}
-	db, err := gorm.Open(mysql.Open(cfg.FormatDSN()), &gorm.Config{})
-
-	if err != nil {
-		println(cfg.FormatDSN())
-		panic("データベース接続失敗")
-	}
-	db.AutoMigrate(&User{})
-	return db
-}
-
 func emptyPage(ctx iris.Context) {
-	println(ctx)
+
 }

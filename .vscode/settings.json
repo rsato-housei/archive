@@ -1,0 +1,7 @@
+{
+    "go.toolsEnvVars": {},
+    "go.inferGopath": true,
+    "gopls": {
+        "build.expandWorkspaceToModule": true
+    }
+}
