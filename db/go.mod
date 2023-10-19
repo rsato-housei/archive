@@ -1,4 +1,4 @@
-module archive/db
+module archive/database
 
 go 1.21.3
 

@@ -2,46 +2,86 @@ package main
 
 import (
 	"archive/auth"
-	"archive/db"
+	"archive/database"
+	"fmt"
 
-	"github.com/kataras/iris"
-	"github.com/kataras/iris/v12/middleware/jwt"
+	"github.com/kataras/iris/v12"
 )
 
-func main(){
-	db := db.New()
+func main() {
 	app := iris.New()
-	bearer := jwt.New(jwt.Config{
-		ValidationKeyGetter: func(token *jwt.Token) (interface{}, error) {
-			return auth.Secret, nil
-		},
-		Expiration: true,
-		Extractor:  jwt.FromAuthHeader,
-	}).Unless(func(ctx iris.Context) bool {
-		return ctx.Path() == "/token" || ctx.Path() == "/authenticate" || ctx.Path() == "/refresh"
-	})
-	
-	generateToken := auth.GenerateTokenFunc(signer)
+	app.OnErrorCode(iris.StatusUnauthorized, handleUnauthorized)
+	app.Post("/signup", signup)
+	app.Post("/login", login)
+	database.InitDB()
 
-	// このミドルウェアを登録することで、jwt.Get()で`UserClaim`が使えるようになる
-	verifyMiddleware := verifier.Verify(
-		func() interface{} { return new(auth.UserClaim) })
-
-
-	//not protected
+	protectedAPI := app.Party("/protected")
 	{
-		app.Get("/token", generateToken)
-		app.Get("/authenticate", auth.GenerateTokenPair)
-		app.Get("/refresh", auth.RefreshToken)
-	}
 
-	// protected
-	protectedAPI := app.Party("/")
-	{
-		protectedAPI.Use(verifyMiddleware)
-		protectedAPI.Get("/", Protected)
-		protectedAPI.Get("/logout", Logout)
-	}
+		protectedAPI.Use(auth.GetVerifyMiddleware())
 
+		protectedAPI.Get("/", func(ctx iris.Context) {
+			user := ctx.User()
+			id, _ := user.GetID()
+			username, _ := user.GetUsername()
+			ctx.Writef("ID: %s\nUsername: %s\n", id, username)
+		})
+	}
 	app.Listen(":8000")
+}
+
+func handleUnauthorized(ctx iris.Context) {
+	if err := ctx.GetErr(); err != nil {
+		ctx.Application().Logger().Errorf("unauthorized: %v", err)
+	}
+
+	ctx.WriteString("Unauthorized")
+}
+
+func signup(ctx iris.Context) {
+	user := database.User{}
+	err := ctx.ReadJSON(&user)
+	if err != nil {
+		ctx.StopWithStatus(iris.StatusBadRequest)
+		ctx.WriteString(err.Error())
+		return
+	}
+	if !user.CheckRequired() {
+		ctx.StopWithStatus(iris.StatusBadRequest)
+		ctx.WriteString(fmt.Sprintf("required: %v", user))
+		return
+	}
+	non_user := auth.NonAuthenticatedUser{
+		Email:    user.Email,
+		Password: user.Password,
+	}
+	user.Password, err = non_user.PasswordEncrypt()
+	if err != nil {
+		ctx.StopWithStatus(iris.StatusInternalServerError)
+		ctx.WriteString(err.Error())
+		return
+	}
+	err = user.Create()
+	if err != nil {
+		ctx.StopWithStatus(iris.StatusInternalServerError)
+		ctx.WriteString(err.Error())
+		return
+	}
+	ctx.StatusCode(iris.StatusOK)
+}
+
+func login(ctx iris.Context) {
+	non_user := auth.NonAuthenticatedUser{}
+	err := ctx.ReadJSON(&non_user)
+	if err != nil {
+		ctx.StopWithStatus(iris.StatusBadRequest)
+		return
+	}
+	user := database.User{}
+	err = user.FindByEmail(non_user.Email)
+	if err != nil || non_user.CompareHashAndPassword(user.Password) != nil {
+		ctx.StopWithStatus(iris.StatusBadRequest)
+		return
+	}
+	auth.GenerateTokenPair(ctx, user.Email)
 }

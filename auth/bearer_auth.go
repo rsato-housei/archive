@@ -1,54 +1,62 @@
 package auth
 
 import (
-	"encoding/json"
 	"os"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/kataras/iris/v12"
 	"github.com/kataras/iris/v12/middleware/jwt"
-	"gorm.io/gorm"
+)
+
+const (
+	accessTokenMaxAge  = 10 * time.Minute
+	refreshTokenMaxAge = time.Hour
 )
 
 var (
-	secret       = []byte(os.Getenv("SECRET_KEY")) // TODO: export SECRET_KEY
-	useAlgorithm = jwt.HS256
-	maxAge       = 10 * time.Minute
-	logger       = iris.Default().Logger().Print
+	secret                = []byte(os.Getenv("SECRET_KEY")) // TODO: export SECRET_KEY
+	useAlgorithm          = jwt.HS256
+	maxAge                = 10 * time.Minute
+	logger                = iris.Default().Logger().Print
+	privateKey, publicKey = jwt.MustLoadRSA("secrets/rsa_private_key.pem", "secrets/rsa_public_key.pem")
+
+	signer           = jwt.NewSigner(jwt.RS256, privateKey, accessTokenMaxAge)
+	verifier         = jwt.NewVerifier(jwt.RS256, publicKey)
+	verifyMiddleware = verifier.Verify(func() interface{} {
+		return new(UserClaim)
+	})
+	refreshTokens = map[string]string{} // Email: RefreshToken
 )
 
-type UserClaims struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+type UserClaim struct {
+	Email string `json:"email"`
+	UUID  string `json:"uuid"`
 }
 
-func GenerateTokenFunc(signer *jwt.Signer) iris.Handler {
-	return func(ctx iris.Context) {
-		claims := UserClaim{}
-		body, _ := ctx.GetBody()
-		logger(claims.Email, claims.Password)
-		err := json.Unmarshal(body, &claims)
+func GenerateNewRefreshToken(ctx iris.Context) {
+	claims := UserClaim{}
+	err := ctx.ReadJSON(&claims)
 
-		if err != nil {
-			logger("generateTokenFunc:", err)
-		}
-		token, err := signer.Sign(claims)
-		if err != nil {
-			ctx.StopWithStatus(iris.StatusInternalServerError)
-			return
-		}
-		ctx.Write(token)
+	if err != nil {
+		logger("generateTokenFunc:", err)
 	}
+	token, err := signer.Sign(claims)
+	if err != nil {
+		ctx.StopWithStatus(iris.StatusInternalServerError)
+		return
+	}
+	ctx.Write(token)
 }
 
 func Protected(ctx iris.Context) {
-	verifiedToken := jwt.GetVerifiedToken(ctx)
+	verifiedToken := jwt.GetVerifiedToken(ctx)// .(*UserClaim)
 	standardClaims := verifiedToken.StandardClaims
 	expiresAtString := standardClaims.ExpiresAt().
 		Format(ctx.Application().ConfigurationReadOnly().GetTimeFormat())
 	timeLeft := standardClaims.Timeleft()
 
-	ctx.Writef("claims=%s\nexpires at: %s\ntime left: %s\n", verifiedToken, expiresAtString, timeLeft)
+	ctx.Writef("claims=%s\nexpires at: %s\ntime left: %s\n", standardClaims.Subject, expiresAtString, timeLeft)
 }
 
 func Logout(ctx iris.Context) {
@@ -60,71 +68,20 @@ func Logout(ctx iris.Context) {
 	}
 }
 
-func authorize(ctx iris.Context) {
-	claims := jwt.Get(ctx).(*UserClaim)
-}
-
-func GenerateTokenPair(ctx iris.Context) (string, string) {
-	return "", ""
-}
-
-func RefreshToken(ctx iris.Context) {
-
-}
-func GetAuthenticateFunc() func(ctx iris.Context, email, password string) (interface{}, bool) {
-	return func(ctx iris.Context, email, password string) (interface{}, bool) {
-		u := db.User{}
-		result := db.Where("email = ?", email).First(&u)
-		println(u.Email, u.Password)
-		// Databaseに一致するメールアドレスがない場合
-		if result.Error != nil {
-			return &u, false
-		}
-		err := bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(password))
-		// Userのパスワードと一致しなかった場合
-		if err != nil {
-			println("authenticate:", err)
-			return User{}, false
-		}
-		println("success: ", email, password)
-		//認証成功
-		return &u, true
-
+func GenerateTokenPair(ctx iris.Context, email string) {
+	claim := UserClaim{
+		Email: email,
+		UUID:  uuid.New().String(),
 	}
-}
-
-type BearerToken struct {
-	secret []byte
-	useAlgorithm jwt.Alg
-	maxAge time.Duration
-	signer *jwt.Signer
-	verifier *jwt.Verifier
-}
-
-// BearerTokenのコンストラクタ
-func NewBearerToken(secret []byte, useAlgorithm jwt.Alg, maxAge time.Duration) *BearerToken {
-	signer := jwt.NewSigner(useAlgorithm, secret, maxAge)
-	verifier := jwt.NewVerifier(useAlgorithm, secret)
-	return &BearerToken{
-		secret: secret,
-		useAlgorithm: useAlgorithm,
-		maxAge: maxAge,
-		signer: signer,
-		verifier: verifier,
+	tokenPair, err := signer.NewTokenPair(claim, claim, refreshTokenMaxAge)
+	if err != nil {
+		logger("token pair:", err)
+		ctx.StopWithStatus(iris.StatusInternalServerError)
 	}
+	refreshTokens[email] = string(tokenPair.RefreshToken)
+	ctx.JSON(tokenPair)
 }
 
-
-// UserClaimsからアクセストークンとリフレッシュトークンを生成するメソッド
-func (b *BearerToken) GenerateTokenPair(claims UserClaims) ([]byte, []byte) {
-	accessToken, _ := b.signer.Sign(claims)
-	refreshToken, _ := b.signer.Sign(claims)
-	return accessToken, refreshToken
-}
-
-// アクセストークンを検証するメソッド
-func (b *BearerToken) VerifyAccessToken(accessToken []byte)
-
-func (b *BearerToken) GetVerifyMiddleware() iris.Handler {
-	return b.verifier.Verify(func() interface{} { return new(UserClaim) })
+func GetVerifyMiddleware() iris.Handler {
+	return verifyMiddleware
 }
