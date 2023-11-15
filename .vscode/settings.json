@@ -1,7 +1,5 @@
 {
     "go.toolsEnvVars": {},
     "go.inferGopath": true,
-    "gopls": {
-        "build.expandWorkspaceToModule": true
-    }
+    "go.goroot": "/root/.gvm/gos/go1.21.3",
 }
