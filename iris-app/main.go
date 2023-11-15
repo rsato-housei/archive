@@ -1,9 +1,13 @@
-// 
-
 package main
 
-import "fmt"
+import "github.com/kataras/iris/v12"
 
 func main() {
-    fmt.Println("Hello world!")
+    app := iris.New()
+
+    app.Handle("GET", "/", func(ctx iris.Context) {
+        ctx.JSON(iris.Map{"message": "ping"})
+    })
+	
+    app.Listen(":8080")
 }
