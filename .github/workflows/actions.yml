@@ -1,9 +1,13 @@
 name: iris-app-actions
 on:
   push:
-    branches: [ master ]
+    branches: 
+      - master
+      - docker-integration
   pull_request:
-    branches: [ master ]
+    branches:
+      - master
+      - docker-integration
 jobs:
   build:
     runs-on: ubuntu-latest
