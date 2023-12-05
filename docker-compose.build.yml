@@ -1,0 +1,16 @@
+version: '0.0.1'
+services:
+  api:
+    build: 
+      context: ./iris-app
+      target: production
+    # volumes:
+    #   - ./iris-app:/go/src/iris-app
+    tty: true
+    # env_file:
+    #   - ./build/.go_env
+    environment:
+      - TZ=Asia/Tokyo
+    ports:
+      - 8080:8080 # ホスト側のポート:コンテナ側のポート
+    image: iris-image:latest

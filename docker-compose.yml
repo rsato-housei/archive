@@ -1,17 +1,4 @@
-version: '0.0.1'
+version: "3.4"
 services:
-  api:
-    container_name: api
-    build: 
-      context: .
-      dockerfile: ./build/Dockerfile
-    volumes:
-      - ./iris-app:/go/src/iris-app
-    tty: true
-    env_file:
-      - ./build/.go_env
-    environment:
-      - TZ=Asia/Tokyo
-    ports:
-      - 8000:8080 # ホスト側のポート:コンテナ側のポート
-    command: go run .
+    app:
+        image: iris-image:latest

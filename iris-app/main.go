@@ -1,4 +1,4 @@
-package main
+package iris_app
 
 import "github.com/kataras/iris/v12"
 

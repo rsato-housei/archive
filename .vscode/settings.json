@@ -2,4 +2,5 @@
     "go.toolsEnvVars": {},
     "go.inferGopath": true,
     "go.goroot": "/root/.gvm/gos/go1.21.3",
+    "go.gopath": "/root/.gvm/pkgsets/go1.21.3/global"
 }
