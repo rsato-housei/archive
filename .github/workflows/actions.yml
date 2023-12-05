@@ -27,8 +27,11 @@ jobs:
         password: ${{ secrets.DOCKERHUB_TOKEN }}
     - name: docker build
       run: docker compose -f docker-compose.build.yml build --no-cache
+
+    - name: docker tag
+      run: docker tag iris-app-actions_web:latest ${{ secrets.REGISTRY_NAME }}.azurecr.io/iris-app-actions_web:latest
     - name: docker push
-      run: docker compose -f docker-compose.build.yml push
+      run: docker push ${{ secrets.REGISTRY_NAME }}.azurecr.io/iris-app-actions_web:latest
     - name: Set up Azure CLI
       uses: azure/login@v1
       with:
