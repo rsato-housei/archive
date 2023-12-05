@@ -29,9 +29,9 @@ jobs:
       run: docker compose -f docker-compose.build.yml build --no-cache
 
     - name: docker tag
-      run: docker tag iris-app-actions_web:latest ${{ secrets.REGISTRY_NAME }}.azurecr.io/iris-app-actions_web:latest
+      run: docker tag iris-app:latest ${{ secrets.REGISTRY_NAME }}.azurecr.io/iris-app:latest
     - name: docker push
-      run: docker push ${{ secrets.REGISTRY_NAME }}.azurecr.io/iris-app-actions_web:latest
+      run: docker push ${{ secrets.REGISTRY_NAME }}.azurecr.io/iris-app:latest
     - name: Set up Azure CLI
       uses: azure/login@v1
       with:
