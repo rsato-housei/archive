@@ -14,6 +14,7 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
+
     # - name: Build and push image to Azure Container Registry
     #   uses: azure/docker-login@v1
     #   with:
@@ -38,6 +39,21 @@ jobs:
     #     client-id: ${{ secrets.AZURE_CLIENT_ID }}
     #     tenant-id: ${{ secrets.AZURE_TENANT_ID }}
     #     subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+    - name: Test
+      uses: actions/setup-go@v4
+      working-directory: iris-app
+      with:
+        go-version: '1.21.3'
+    - name: Install dependencies
+      run: go get .
+      working-directory: iris-app
+    - name: Build
+      run: go build -v ./...
+      working-directory: iris-app
+    - name: Test with the Go CLI
+      run: go test main_test.go
+      working-directory: iris-app
 
     - name: 'Login via Azure CLI'
       uses: azure/login@v1
