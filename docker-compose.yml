@@ -2,3 +2,5 @@ version: "3.4"
 services:
     app:
         image: iris-image:latest
+        ports:
+            - "8080:8080"

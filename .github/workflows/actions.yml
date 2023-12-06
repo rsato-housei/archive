@@ -66,4 +66,4 @@ jobs:
         registry-username: ${{ secrets.REGISTRY_USERNAME }}
         registry-password: ${{ secrets.REGISTRY_PASSWORD }}
         name: iris-app
-        location: 'west us'
+        location: 'japan east'
