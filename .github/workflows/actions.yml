@@ -53,7 +53,7 @@ jobs:
         password: ${{ secrets.REGISTRY_PASSWORD }}
     - run: |
         docker compose -f docker-compose.build.yml build --no-cache
-        docker tag docker tag iris-app:latest ${{ secrets.REGISTRY_LOGIN_SERVER }}/iris-app:${{ github.sha }}
+        docker tag docker tag docker.io/library/iris-app:latest ${{ secrets.REGISTRY_LOGIN_SERVER }}/iris-app:${{ github.sha }}
         docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/iris-app:${{ github.sha }}
 
     - name: 'Deploy to Azure Container Instances'
