@@ -67,3 +67,4 @@ jobs:
         registry-password: ${{ secrets.REGISTRY_PASSWORD }}
         name: iris-app
         location: 'japan east'
+        ports: 8080
